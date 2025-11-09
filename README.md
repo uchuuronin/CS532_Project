@@ -8,7 +8,7 @@ We want to focus on the  following systems concepts: concurrent I/O vs. CPU stag
 ## Architecture
 
 ```
-Binance WebSocket API
+   Coinbase WebSocket API
          ↓
    Producer (Python)
          ↓
@@ -58,12 +58,17 @@ docker-compose logs -f producer
 docker exec kafka kafka-topics --list --bootstrap-server localhost:9092
 ```
 
+## Shut down
+```bash
+docker-compose down -v
+```
+
 ## More about the Data
 
 **Three Cryptocurrencies:**
-- **BTCUSDT** - Bitcoin / US Dollar Tether
-- **ETHUSDT** - Ethereum / US Dollar Tether  
-- **USDTUSDT** - Tether / US Dollar Tether
+- **BTC-USD** - Bitcoin / US Dollar Tether
+- **ETH-USD** - Ethereum / US Dollar Tether  
+- **USDT-USD** - Tether / US Dollar Tether
 
 **Trade Data Fields:**
 - `symbol` - Trading pair
@@ -129,9 +134,6 @@ docker exec kafka kafka-topics --describe --topic crypto-trades --bootstrap-serv
 
 # Check consumer group:
 docker exec kafka kafka-consumer-groups --bootstrap-server localhost:9092 --describe --group crypto-consumer-group
-
-# Check Binance is reachable
-docker exec crypto-producer ping -c 3 stream.binance.com
 
 # Verify Kafka is accessible
 docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092

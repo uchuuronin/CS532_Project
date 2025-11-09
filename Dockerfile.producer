@@ -9,4 +9,4 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy producer code
 COPY src/producer /app/producer
 
-CMD ["python", "-u", "producer/binance_producer.py"]
+CMD ["python", "-u", "producer/coinbase_producer.py"]

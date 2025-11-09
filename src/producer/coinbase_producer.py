@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Binance WebSocket Producer - Milestone 1
-Connects to Binance API and streams raw trade data to Kafka.
+Coinbase WebSocket Producer - Milestone 1
+Connects to Coinbase API and streams raw trade data to Kafka.
+Coinbase has high volume and no geo-restrictions!
 """
 
 import json
@@ -21,13 +22,23 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-class BinanceProducer:
-    """Producer for streaming Binance trade data to Kafka"""
+class CoinbaseProducer:
+    """Producer for streaming Coinbase trade data to Kafka"""
+    
+    # Map common symbols to Coinbase product IDs
+    SYMBOL_MAP = {
+        'BTCUSDT': 'BTC-USD',
+        'ETHUSDT': 'ETH-USD',
+        'USDTUSDT': 'USDT-USD'
+    }
     
     def __init__(self):
         self.bootstrap_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:9092')
         self.topic = os.getenv('KAFKA_TOPIC', 'crypto-trades')
-        self.symbols = os.getenv('SYMBOLS', 'BTCUSDT,ETHUSDT,USDTUSDT').split(',')
+        symbols_env = os.getenv('SYMBOLS', 'BTCUSDT,ETHUSDT,USDTUSDT').split(',')
+        
+        # Convert to Coinbase product IDs
+        self.symbols = [self.SYMBOL_MAP.get(s, s) for s in symbols_env]
         self.batch_size = int(os.getenv('BATCH_SIZE', '1'))
         self.replay_speed = float(os.getenv('REPLAY_SPEED', '1'))
         
@@ -36,7 +47,7 @@ class BinanceProducer:
         self.message_count = 0
         self.start_time = time.time()
         
-        logger.info(f"Initializing BinanceProducer")
+        logger.info(f"Initializing CoinbaseProducer")
         logger.info(f"Symbols: {self.symbols}")
         logger.info(f"Batch size: {self.batch_size}, Replay speed: {self.replay_speed}x")
         
@@ -70,16 +81,16 @@ class BinanceProducer:
         try:
             data = json.loads(message)
             
-            # Extract trade information from Binance aggTrade stream
-            if 'e' in data and data['e'] == 'aggTrade':
-                # Normalize trade data
+            # Coinbase sends different message types
+            if data.get('type') == 'match':
+                # Normalize Coinbase trade data to match our format
                 trade_data = {
-                    'symbol': data['s'],           # Trading symbol
-                    'price': float(data['p']),     # Trade price
-                    'quantity': float(data['q']),  # Trade quantity
-                    'timestamp': data['T'],        # Trade timestamp (ms)
-                    'is_buyer_maker': data['m'],   # Buyer is maker?
-                    'trade_id': data['a']          # Aggregate trade ID
+                    'symbol': data['product_id'].replace('-', ''),  # BTC-USD -> BTCUSD
+                    'price': float(data['price']),
+                    'quantity': float(data['size']),
+                    'timestamp': int(datetime.fromisoformat(data['time'].replace('Z', '+00:00')).timestamp() * 1000),
+                    'is_buyer_maker': data['side'] == 'sell',  # sell side = buyer is maker
+                    'trade_id': data['trade_id']
                 }
                 
                 self.send_to_kafka(trade_data)
@@ -123,22 +134,30 @@ class BinanceProducer:
     
     def on_open(self, ws):
         """Handle WebSocket connection opening"""
-        logger.info(f"WebSocket connected for symbols: {self.symbols}")
+        logger.info(f"WebSocket connected!")
+        
+        # Subscribe to trade channels for all symbols
+        subscribe_message = {
+            "type": "subscribe",
+            "product_ids": self.symbols,
+            "channels": ["matches"]
+        }
+        ws.send(json.dumps(subscribe_message))
+        logger.info(f" Subscribed to: {', '.join(self.symbols)}")
     
     def start(self):
         """Start the producer"""
         logger.info("="*80)
-        logger.info("STARTING BINANCE PRODUCER\n")
-
+        logger.info("STARTING COINBASE PRODUCER")
+        logger.info("="*80)
+        
         # Connect to Kafka
         self.connect_kafka()
         
-        # Build WebSocket URL for multiple symbols
-        streams = [f"{symbol.lower()}@aggTrade" for symbol in self.symbols]
-        stream_names = '/'.join(streams)
-        ws_url = f"wss://stream.binance.us:9443/stream?streams={stream_names}"
+        # Coinbase WebSocket URL (no geo-restrictions!)
+        ws_url = "wss://ws-feed.exchange.coinbase.com"
         
-        logger.info(f"Connecting to Binance WebSocket...")
+        logger.info(f"Connecting to Coinbase WebSocket...")
         logger.info(f"Streaming: {', '.join(self.symbols)}")
         
         # Run forever with automatic reconnection
@@ -176,7 +195,7 @@ class BinanceProducer:
 
 def main():
     """Main entry point"""
-    producer = BinanceProducer()
+    producer = CoinbaseProducer()
     producer.start()
 
 
