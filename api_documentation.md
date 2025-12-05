@@ -7,13 +7,11 @@ This guide explains how to run the complete project with FastAPI integration and
 1. **Python 3.11+** installed
 2. **Data files** - Either existing parquet files in `data/outputs/` OR run the stream processor first
 
-## Step 1: Install Dependencies
+## Step 1: Install Required Dependencies
 
 ```bash
-# Install all required packages
 pip install -r requirements.txt
 ```
-
 This installs:
 - FastAPI and Uvicorn (API server)
 - Plotly (visualizations)
@@ -21,7 +19,6 @@ This installs:
 - Kafka-python, websocket-client (streaming)
 
 ## Step 2: Ensure Data Exists
-
 The API reads from parquet files in `data/outputs/`. You have two options:
 
 ### Option A: Use Existing Data
@@ -47,9 +44,7 @@ If you already have parquet files from previous runs, skip to Step 3.
 ## Step 3: Start the FastAPI Server
 
 ```bash
-# Set the output directory (where parquet files are stored)
 export OUTPUT_DIR="$(pwd)/data/outputs"
-
 # Start the FastAPI server
 uvicorn src.api.main:app --reload --host 0.0.0.0 --port 8000
 ```
@@ -67,7 +62,7 @@ Once the server is running, you'll see:
 INFO:     Uvicorn running on http://0.0.0.0:8000
 ```
 
-### 🎨 Interactive Dashboard
+### Open Dashboard
 Open in your browser:
 ```
 http://localhost:8000/
@@ -79,12 +74,12 @@ Features:
 - Compare multiple symbols
 - Adjust data limit
 
-### 📚 API Documentation (Swagger UI)
+### API Documentation (Swagger UI)
 ```
 http://localhost:8000/docs
 ```
 
-### 📖 Alternative API Docs (ReDoc)
+### Alternative API Docs (ReDoc)
 ```
 http://localhost:8000/redoc
 ```
