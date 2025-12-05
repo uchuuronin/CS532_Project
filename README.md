@@ -5,7 +5,7 @@
 
 A comprehensive distributed streaming system for real-time cryptocurrency market data analysis. This project demonstrates key systems concepts including concurrent I/O, bounded queues, offset management, configurable parallelism, checkpoint-based recovery, and scalable consumer architecture.
 
-## 🎯 Project Overview
+## Project Overview
 
 This project builds an end-to-end real-time analytics pipeline that:
 - **Ingests** live cryptocurrency trade data from Coinbase/Binance WebSocket APIs
@@ -15,95 +15,10 @@ This project builds an end-to-end real-time analytics pipeline that:
 - **Serves** data via REST API with interactive visualizations
 - **Enables** machine learning predictions on price trends
 
-## 🏗️ Architecture
+## Architecture
+![Workflow Diagram](./Workflow%20Diagram.png)
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Data Sources                                  │
-│  ┌──────────────┐         ┌──────────────┐                     │
-│  │ Coinbase API │         │ Binance API  │                     │
-│  │ (WebSocket)  │         │ (WebSocket)  │                     │
-│  └──────┬───────┘         └──────┬───────┘                     │
-│         │                        │                              │
-│         └────────────┬───────────┘                              │
-│                      │                                           │
-└──────────────────────┼──────────────────────────────────────────┘
-                       │
-                       ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Producer Layer                                │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Producer (Python)                                       │   │
-│  │  - WebSocket connection management                        │   │
-│  │  - Data normalization (symbol mapping)                   │   │
-│  │  - JSON serialization                                     │   │
-│  │  - Kafka message publishing                               │   │
-│  └───────────────────────┬──────────────────────────────────┘   │
-└──────────────────────────┼──────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Message Queue Layer                           │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Apache Kafka                                             │   │
-│  │  - Topic: crypto-trades                                   │   │
-│  │  - Partitions: 4 (configurable)                          │   │
-│  │  - Replication: 1                                        │   │
-│  │  - Retention: 24 hours                                   │   │
-│  └───────────────────────┬──────────────────────────────────┘   │
-└──────────────────────────┼──────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Processing Layer                              │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Stream Processor (Python)                              │   │
-│  │  - Data cleaning & validation                           │   │
-│  │  - 1-second OHLC aggregation                             │   │
-│  │  - Volatility calculation (log returns)                  │   │
-│  │  - Checkpoint-based recovery                             │   │
-│  │  - Parquet file writing (partitioned by symbol/date)     │   │
-│  └───────────────────────┬──────────────────────────────────┘   │
-└──────────────────────────┼──────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Storage Layer                                  │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Parquet Files (Partitioned)                            │   │
-│  │  data/outputs/                                           │   │
-│  │  ├── ohlc/                                              │   │
-│  │  │   └── symbol=BTCUSD/date=2025-11-10/                │   │
-│  │  └── volatility/                                       │   │
-│  │      └── symbol=BTCUSD/date=2025-11-10/                 │   │
-│  └───────────────────────┬──────────────────────────────────┘   │
-└──────────────────────────┼──────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    API & Visualization Layer                     │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  FastAPI Server                                          │   │
-│  │  - REST API endpoints (OHLC, Volatility)                 │   │
-│  │  - Interactive dashboard (Plotly charts)               │   │
-│  │  - Data filtering (symbol, date, limit)                  │   │
-│  │  - Real-time visualizations                              │   │
-│  └───────────────────────┬──────────────────────────────────┘   │
-└──────────────────────────┼──────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    Analytics Layer                               │
-│  ┌──────────────────────────────────────────────────────────┐   │
-│  │  Machine Learning Models                                 │   │
-│  │  - Trend prediction (up/down)                             │   │
-│  │  - Feature engineering (momentum, MA, volatility)         │   │
-│  │  - SGD Classifier for price direction                     │   │
-│  └──────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## 📦 Main Components
+## Main Components
 
 ### 1. **Producer** (`src/producer/`)
 - **`coinbase_producer.py`**: Connects to Coinbase WebSocket API, normalizes trade data, publishes to Kafka
@@ -167,7 +82,7 @@ This project builds an end-to-end real-time analytics pipeline that:
 - **Integration Tests**: End-to-end component testing
 - **Test Runner**: `run_tests.py` with coverage support
 
-## 🚀 Quick Start
+## Guide: How to Run
 
 ### Prerequisites
 - **Docker & Docker Compose** (for Kafka infrastructure)
@@ -222,7 +137,7 @@ Open your browser:
 - **API Docs**: http://localhost:8000/docs
 - **Health Check**: http://localhost:8000/health
 
-## 📊 Data Flow
+## Data Flow
 
 ### Trade Data Structure
 ```json
@@ -250,7 +165,7 @@ timestamp                  volatility  symbol
 2025-11-10 02:18:09+00:00 0.000015    BTCUSD
 ```
 
-## 🔧 Configuration
+## Environmental Configuration
 
 ### Environment Variables
 
@@ -288,7 +203,7 @@ PARQUET_CHUNK_SECONDS=10  # Flush interval
 | `MAX_POLL_RECORDS` | Memory usage | Higher = more memory, better throughput |
 | `REPLAY_SPEED` | Stress testing | >1 = faster replay for testing |
 
-## 📡 API Endpoints
+## API Endpoints in use
 
 ### OHLC Data
 ```bash
@@ -332,7 +247,7 @@ GET /health
 GET /api/symbols
 ```
 
-## 🧪 Testing
+## Testing
 
 ### Run All Tests
 ```bash
@@ -346,36 +261,7 @@ pytest tests/ -v
 python run_tests.py --coverage
 ```
 
-### Test Types
-- **Unit Tests**: Data validation, calculation logic
-- **Integration Tests**: End-to-end component testing
-- **Test Coverage**: ~95% across all components
-
-See `tests/README.md` for detailed testing documentation.
-
-## 📁 Project Structure
-
-```
-CS532_Project/
-├── src/
-│   ├── producer/          # WebSocket producers (Coinbase, Binance)
-│   ├── consumer/          # Kafka consumer and stream processor
-│   ├── api/               # FastAPI application
-│   │   ├── routes/        # API endpoints (OHLC, volatility, viz)
-│   │   ├── data_loader.py # Parquet file loader
-│   │   ├── models.py      # Pydantic models
-│   │   └── main.py        # FastAPI app
-│   └── model/             # ML models (Jupyter notebook)
-├── tests/                 # Comprehensive test suite
-├── data/
-│   └── outputs/           # Parquet files (OHLC, volatility)
-├── docker-compose.yml     # Kafka infrastructure
-├── requirements.txt       # Python dependencies
-├── run_tests.py          # Test runner script
-└── README.md             # This file
-```
-
-## 🔍 Monitoring & Debugging
+## Monitoring & Debugging 
 
 ### View Logs
 ```bash
@@ -416,8 +302,6 @@ python3 -c "import sys; sys.path.insert(0, 'src'); from api.data_loader import D
 find data/outputs -name "*.parquet" | wc -l
 ```
 
-## 🛠️ Troubleshooting
-
 ### API Not Showing Data
 1. **Check data exists**: Verify parquet files in `data/outputs/`
 2. **Check API logs**: Look for errors in terminal
@@ -435,41 +319,20 @@ find data/outputs -name "*.parquet" | wc -l
 - Check that OHLC data exists for the symbol
 - Verify the API endpoint returns data: `curl http://localhost:8000/api/volatility/?symbol=BTCUSD&limit=5`
 
-## 🎓 Key Systems Concepts Demonstrated
+## Additional Documentation
 
-1. **Concurrent I/O vs CPU Stages**: Producer (I/O) → Processor (CPU) → Storage (I/O)
-2. **Bounded Queues/Backpressure**: Kafka partitions with configurable capacity
-3. **Offset Management**: Kafka consumer groups with manual offset commits
-4. **Configurable Parallelism**: Multiple Kafka partitions, configurable consumer parallelism
-5. **Checkpoint-based Recovery**: Stream processor checkpoints for fault tolerance
-6. **Scalable Consumer Architecture**: Horizontal scaling via consumer groups
-
-## 📚 Additional Documentation
-
-- **API Guide**: See `API_RUNNING_GUIDE.md` for detailed API usage
-- **Testing Guide**: See `tests/README.md` for testing documentation
+- **API Guide**: See `api_documentation.md` for detailed API usage
+- **Testing Guide**: See `tests/test_documentation.md` for testing documentation
 - **Architecture Diagram**: See `Workflow Diagram.png` for visual overview
 
-## 🤝 Contributing
-
-This is an academic project for Systems for Data Science course. For improvements:
-1. Test changes thoroughly
-2. Update documentation
-3. Ensure backward compatibility
-4. Run test suite before committing
-
-## 📝 License
+## License & Acknowledgments
 
 Academic project - Systems for Data Science course.
-
-## Acknowledgments
 
 - Coinbase and Binance for WebSocket APIs
 - Apache Kafka for distributed streaming
 - FastAPI and Plotly for API and visualizations
 
----
-
+## Status
 **Last Updated**: 2025-11-10  
 **Version**: 1.0.0  
-**Status**: Production Ready ✅
