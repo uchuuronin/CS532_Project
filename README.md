@@ -34,16 +34,13 @@ docker-compose logs -f consumer
 You'll see output like:
 
 ```
-================================================================================
 RAW TRADE DATA - Message #123
-================================================================================
 Symbol:       BTCUSDT
 Price:        $42,150.50
 Quantity:     0.05234000
 Timestamp:    2025-11-09T15:30:45.123000
 Trade ID:     12345678
 Buyer Maker:  False
-================================================================================
 ```
 
 ### Check Producer is Streaming
