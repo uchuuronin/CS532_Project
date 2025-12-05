@@ -336,4 +336,3 @@ Academic project - Systems for Data Science course.
 ## Status
 **Last Updated**: 2025-11-10  
 **Version**: 1.0.0  
-**Status**: Production Ready
