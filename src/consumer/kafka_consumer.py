@@ -2,7 +2,9 @@
 """
 Kafka Consumer Stub - Milestone 1
 Basic consumer that prints raw trade data.
-Next milestone: Add OHLC calculation, volatility, preprocessing
+
+Note: For full processing (OHLC calculation, volatility, parquet persistence),
+use stream_processor.py instead. This consumer is kept for debugging/verification.
 """
 
 import json
@@ -70,11 +72,11 @@ class CryptoConsumer:
         """
         Process individual message - prints raw data
         
-        TODO (Next milestone): 
-        - Add data cleaning/preprocessing
-        - Calculate 1s OHLC (Open, High, Low, Close)
-        - Calculate 10s volatility
-        - Persist to Parquet/CSV
+        Note: For full processing capabilities, use stream_processor.py which includes:
+        - Data cleaning/preprocessing
+        - 1s OHLC calculation (Open, High, Low, Close)
+        - Volatility calculation
+        - Parquet persistence
         """
         try:
             trade = message.value
@@ -109,7 +111,7 @@ class CryptoConsumer:
         logger.info("="*80)
         logger.info("STARTING CRYPTO CONSUMER (STUB)")
         logger.info("This consumer prints raw trade data.")
-        ## Add data cleaning, preprocessing, OHLC, volatility, parquet persistence next
+        logger.info("For full processing, use stream_processor.py instead.")
         
         # Connect to Kafka
         self.connect_kafka()

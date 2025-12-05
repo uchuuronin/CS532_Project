@@ -185,7 +185,23 @@ class StreamProcessor:
             ohlc['timestamp'] = pd.to_datetime(ohlc['timestamp'], utc=True)
 
             # volatility per second (std of log returns) -> we compute per-second series
-            vol_series = df_ready['price'].resample('1s').apply(lambda s: np.log(s).diff().std())
+            # Use a rolling window approach: calculate volatility from log returns within each 1s window
+            def calc_volatility(price_series):
+                """Calculate volatility from price series"""
+                if len(price_series) < 2:
+                    # Need at least 2 points to calculate returns
+                    return np.nan
+                log_prices = np.log(price_series)
+                log_returns = log_prices.diff().dropna()
+                if len(log_returns) == 0:
+                    return np.nan
+                vol = log_returns.std()
+                # Return 0 if vol is NaN or inf, otherwise return the value
+                if pd.isna(vol) or np.isinf(vol):
+                    return 0.0
+                return vol
+            
+            vol_series = df_ready['price'].resample('1s').apply(calc_volatility)
             vol_df = vol_series.reindex(ohlc['timestamp'].values).reset_index()
             # normalize column names: reset_index yields [timestamp_col, value_col]
             if len(vol_df.columns) >= 2:
@@ -193,6 +209,9 @@ class StreamProcessor:
             else:
                 # fallback: create empty volatility frame matching ohlc timestamps
                 vol_df = pd.DataFrame({'timestamp': ohlc['timestamp'].values, 'volatility': np.nan})
+            
+            # Fill NaN values with 0 or forward fill for better visualization
+            vol_df['volatility'] = vol_df['volatility'].fillna(0.0)
             vol_df['symbol'] = sym
             vol_df['timestamp'] = pd.to_datetime(vol_df['timestamp'], utc=True)
 

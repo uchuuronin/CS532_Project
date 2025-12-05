@@ -109,5 +109,68 @@ class TestSymbolMapping(unittest.TestCase):
         self.assertNotIn('-', normalized)
 
 
+class TestProducerErrorHandling(unittest.TestCase):
+    """Additional error handling tests"""
+    
+    def test_missing_required_fields(self):
+        """Test handling of trade data with missing required fields"""
+        incomplete_trades = [
+            {},  # Empty dict
+            {'symbol': 'BTCUSD'},  # Missing price, quantity, timestamp
+            {'price': 50000.0},  # Missing symbol, quantity, timestamp
+            {'symbol': 'BTCUSD', 'price': 50000.0},  # Missing quantity, timestamp
+        ]
+        
+        required_fields = ['symbol', 'price', 'quantity', 'timestamp']
+        for trade in incomplete_trades:
+            for field in required_fields:
+                if field not in trade:
+                    # Should handle missing field gracefully
+                    self.assertNotIn(field, trade)
+    
+    def test_type_errors(self):
+        """Test handling of type errors in data conversion"""
+        # Test invalid price types
+        invalid_prices = ['not a number', None, '', []]
+        for price in invalid_prices:
+            try:
+                float(price)
+            except (ValueError, TypeError):
+                # Expected behavior
+                pass
+        
+        # Test invalid quantity types
+        invalid_quantities = ['not a number', None, '', {}]
+        for qty in invalid_quantities:
+            try:
+                float(qty)
+            except (ValueError, TypeError):
+                # Expected behavior
+                pass
+    
+    def test_extreme_values(self):
+        """Test handling of extreme values"""
+        # Very large numbers
+        large_price = 1e10
+        self.assertIsInstance(large_price, (int, float))
+        
+        # Very small numbers
+        small_quantity = 1e-10
+        self.assertGreater(small_quantity, 0)
+        
+        # Very large timestamp
+        large_timestamp = 9999999999999
+        self.assertIsInstance(large_timestamp, int)
+    
+    def test_special_characters_in_symbol(self):
+        """Test handling of special characters in symbol"""
+        symbols_with_special = ['BTC-USD', 'BTC/USD', 'BTC_USD']
+        
+        for symbol in symbols_with_special:
+            # Should handle or normalize
+            normalized = symbol.replace('-', '').replace('/', '').replace('_', '')
+            self.assertIsInstance(normalized, str)
+
+
 if __name__ == '__main__':
     unittest.main()

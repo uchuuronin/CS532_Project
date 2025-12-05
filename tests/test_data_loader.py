@@ -211,3 +211,125 @@ class TestParquetPathStructure(unittest.TestCase):
         self.assertIn('date=', expected_path)
 
 
+class TestDataLoaderErrorHandling(unittest.TestCase):
+    """Error handling tests for data loader"""
+    
+    def test_invalid_symbol_filter(self):
+        """Test filtering with invalid symbol"""
+        df = self.create_sample_ohlc_data()
+        
+        filtered = df[df['symbol'] == 'INVALID']
+        
+        self.assertEqual(len(filtered), 0)
+        self.assertTrue(filtered.empty)
+    
+    def test_invalid_date_range(self):
+        """Test filtering with invalid date range"""
+        df = self.create_sample_ohlc_data()
+        
+        # Start date after end date
+        filtered = df[(df['date'] >= '2023-11-10') & (df['date'] <= '2023-11-09')]
+        
+        self.assertEqual(len(filtered), 0)
+    
+    def test_limit_greater_than_data(self):
+        """Test limit greater than available data"""
+        df = self.create_sample_ohlc_data()
+        
+        limit = 1000
+        limited = df.tail(limit)
+        
+        # Should return all available data
+        self.assertLessEqual(len(limited), len(df))
+        self.assertEqual(len(limited), len(df))
+    
+    def test_limit_zero_or_negative(self):
+        """Test handling of zero or negative limits"""
+        df = self.create_sample_ohlc_data()
+        
+        # Limit of 0 should return empty
+        limited_zero = df.tail(0)
+        self.assertEqual(len(limited_zero), 0)
+        
+        # Negative limit should be handled (pandas tail handles this)
+        limited_neg = df.tail(-1)
+        self.assertIsInstance(limited_neg, pd.DataFrame)
+
+
+class TestDataLoaderEdgeCases(unittest.TestCase):
+    """Edge case tests for data loader"""
+    
+    def create_sample_ohlc_data(self):
+        """Create sample OHLC dataframe for testing"""
+        timestamps = pd.date_range('2023-11-09 12:00:00', periods=10, freq='1s', tz='UTC')
+        
+        data = {
+            'timestamp': timestamps,
+            'open': [50000 + i*10 for i in range(10)],
+            'high': [50020 + i*10 for i in range(10)],
+            'low': [49980 + i*10 for i in range(10)],
+            'close': [50010 + i*10 for i in range(10)],
+            'volume': [0.5 + i*0.1 for i in range(10)],
+            'symbol': ['BTCUSD'] * 10,
+            'date': ['2023-11-09'] * 10
+        }
+        
+        return pd.DataFrame(data)
+    
+    def test_empty_dataframe_operations(self):
+        """Test operations on empty dataframe"""
+        empty_df = pd.DataFrame(columns=['timestamp', 'open', 'high', 'low', 'close', 'volume', 'symbol'])
+        
+        # Should handle empty dataframe gracefully
+        self.assertTrue(empty_df.empty)
+        self.assertEqual(len(empty_df), 0)
+        
+        # Filtering should return empty
+        filtered = empty_df[empty_df['symbol'] == 'BTCUSD']
+        self.assertTrue(filtered.empty)
+    
+    def test_missing_columns(self):
+        """Test handling of dataframes with missing columns"""
+        incomplete_df = pd.DataFrame({
+            'timestamp': pd.date_range('2023-11-09 12:00:00', periods=5, freq='1s', tz='UTC'),
+            'open': [50000] * 5,
+            # Missing high, low, close, volume
+        })
+        
+        # Should handle missing columns
+        self.assertIn('timestamp', incomplete_df.columns)
+        self.assertIn('open', incomplete_df.columns)
+        self.assertNotIn('high', incomplete_df.columns)
+    
+    def test_duplicate_timestamps(self):
+        """Test handling of duplicate timestamps"""
+        timestamps = pd.date_range('2023-11-09 12:00:00', periods=5, freq='1s', tz='UTC')
+        # Add duplicate
+        timestamps = list(timestamps) + [timestamps[0]]
+        
+        df = pd.DataFrame({
+            'timestamp': timestamps,
+            'open': [50000] * 6,
+            'high': [50100] * 6,
+            'low': [49900] * 6,
+            'close': [50050] * 6,
+            'volume': [0.5] * 6,
+            'symbol': ['BTCUSD'] * 6
+        })
+        
+        # Should handle duplicates
+        self.assertEqual(len(df), 6)
+        self.assertEqual(len(df['timestamp'].unique()), 5)
+    
+    def test_very_large_limit(self):
+        """Test handling of very large limit values"""
+        df = self.create_sample_ohlc_data()
+        
+        # Very large limit
+        large_limit = 10**6
+        limited = df.tail(large_limit)
+        
+        # Should return all available data
+        self.assertLessEqual(len(limited), len(df))
+        self.assertEqual(len(limited), len(df))
+

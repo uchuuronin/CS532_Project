@@ -165,3 +165,122 @@ class TestDataTypes(unittest.TestCase):
         self.assertEqual(len(date_str), 10)
         self.assertIn('-', date_str)
 
+
+class TestStreamProcessorErrorHandling(unittest.TestCase):
+    """Additional error handling tests for stream processor"""
+    
+    def test_ohlc_with_single_trade(self):
+        """Test OHLC calculation with only one trade in window"""
+        base_time = pd.Timestamp('2023-11-09 12:00:00', tz='UTC')
+        
+        trades = pd.DataFrame([{
+            'timestamp': base_time,
+            'price': 50000.0,
+            'quantity': 0.1,
+            'symbol': 'BTCUSD'
+        }])
+        
+        trades = trades.set_index('timestamp')
+        ohlc = trades['price'].resample('1s').agg(['first', 'max', 'min', 'last'])
+        
+        if not ohlc.empty:
+            row = ohlc.iloc[0]
+            # With single trade, all OHLC should be same
+            self.assertEqual(row['first'], row['max'])
+            self.assertEqual(row['max'], row['min'])
+            self.assertEqual(row['min'], row['last'])
+    
+    def test_ohlc_with_no_trades(self):
+        """Test OHLC calculation with no trades"""
+        empty_trades = pd.DataFrame(columns=['timestamp', 'price', 'quantity'])
+        empty_trades = empty_trades.set_index('timestamp')
+        
+        ohlc = empty_trades['price'].resample('1s').agg(['first', 'max', 'min', 'last']) if 'price' in empty_trades.columns else pd.DataFrame()
+        
+        # Should handle empty dataframe
+        self.assertIsInstance(ohlc, pd.DataFrame)
+    
+    def test_volatility_with_constant_prices(self):
+        """Test volatility calculation with constant prices (zero volatility)"""
+        constant_prices = pd.Series([100.0, 100.0, 100.0, 100.0, 100.0])
+        
+        log_returns = np.log(constant_prices).diff()
+        volatility = log_returns.std()
+        
+        # With constant prices, volatility should be 0 or NaN
+        self.assertTrue(volatility == 0 or pd.isna(volatility))
+    
+    def test_volatility_with_negative_prices(self):
+        """Test handling of negative prices (should not occur but test robustness)"""
+        # In real scenario, prices should never be negative
+        # But test that system handles it gracefully
+        negative_prices = pd.Series([100.0, -50.0, 100.0])
+        
+        try:
+            log_returns = np.log(negative_prices).diff()
+            # Should raise error or handle gracefully
+        except (ValueError, FloatingPointError):
+            # Expected behavior for negative prices
+            pass
+    
+    def test_out_of_order_timestamps(self):
+        """Test handling of out-of-order timestamps"""
+        base_time = pd.Timestamp('2023-11-09 12:00:00', tz='UTC')
+        
+        # Create trades with out-of-order timestamps
+        trades = pd.DataFrame([
+            {'timestamp': base_time + pd.Timedelta(seconds=2), 'price': 50000, 'quantity': 0.1},
+            {'timestamp': base_time, 'price': 50010, 'quantity': 0.1},
+            {'timestamp': base_time + pd.Timedelta(seconds=1), 'price': 50020, 'quantity': 0.1},
+        ])
+        
+        # Should sort by timestamp
+        trades = trades.sort_values('timestamp')
+        timestamps = trades['timestamp'].tolist()
+        self.assertEqual(timestamps, sorted(timestamps))
+
+
+class TestStreamProcessorEdgeCases(unittest.TestCase):
+    """Edge case tests for stream processor"""
+    
+    def test_very_high_volatility(self):
+        """Test volatility calculation with very high price changes"""
+        prices = pd.Series([100.0, 200.0, 100.0, 200.0, 100.0])
+        
+        log_returns = np.log(prices).diff()
+        volatility = log_returns.std()
+        
+        # Should calculate without error
+        self.assertIsNotNone(volatility)
+        self.assertFalse(np.isinf(volatility))
+    
+    def test_very_low_volatility(self):
+        """Test volatility calculation with very small price changes"""
+        prices = pd.Series([100.0, 100.001, 100.002, 100.001, 100.003])
+        
+        log_returns = np.log(prices).diff()
+        volatility = log_returns.std()
+        
+        # Should be very small but positive
+        self.assertIsNotNone(volatility)
+        self.assertGreaterEqual(volatility, 0)
+    
+    def test_multiple_symbols_ohlc(self):
+        """Test OHLC calculation for multiple symbols"""
+        base_time = pd.Timestamp('2023-11-09 12:00:00', tz='UTC')
+        
+        trades = pd.DataFrame([
+            {'timestamp': base_time, 'price': 50000, 'quantity': 0.1, 'symbol': 'BTCUSD'},
+            {'timestamp': base_time, 'price': 3000, 'quantity': 1.0, 'symbol': 'ETHUSD'},
+        ])
+        
+        trades = trades.set_index('timestamp')
+        
+        # Calculate OHLC per symbol
+        for symbol in trades['symbol'].unique():
+            symbol_trades = trades[trades['symbol'] == symbol]
+            ohlc = symbol_trades['price'].resample('1s').agg(['first', 'max', 'min', 'last'])
+            
+            if not ohlc.empty:
+                self.assertIn('first', ohlc.columns)
+

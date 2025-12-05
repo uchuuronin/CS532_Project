@@ -101,10 +101,48 @@ async def volatility_chart(
 ):
     """Generate volatility chart"""
     try:
-        df = loader.load_volatility(symbol=symbol, limit=limit)
+        import numpy as np
+        
+        # Try to load volatility data first
+        df_vol = loader.load_volatility(symbol=symbol, limit=limit)
+        
+        # If volatility data is empty or all NaN, calculate from OHLC data
+        if df_vol.empty or df_vol['volatility'].isna().all() or (df_vol['volatility'] == 0).all():
+            # Fallback: calculate volatility from OHLC data
+            df_ohlc = loader.load_ohlc(symbol=symbol, limit=limit)
+            
+            if df_ohlc.empty:
+                raise HTTPException(status_code=404, detail=f"No data found for symbol {symbol}")
+            
+            # Calculate volatility from OHLC using log returns of close prices
+            df_ohlc = df_ohlc.sort_values('timestamp')
+            df_ohlc['log_price'] = np.log(df_ohlc['close'])
+            df_ohlc['log_returns'] = df_ohlc['log_price'].diff()
+            
+            # Calculate rolling volatility (10-second window, or use available data)
+            window_size = min(10, len(df_ohlc))
+            if window_size > 1:
+                df_ohlc['volatility'] = df_ohlc['log_returns'].rolling(window=window_size, min_periods=2).std()
+            else:
+                df_ohlc['volatility'] = 0.0
+            
+            # Fill NaN values with 0
+            df_ohlc['volatility'] = df_ohlc['volatility'].fillna(0.0)
+            
+            # Use OHLC data for plotting
+            df = df_ohlc[['timestamp', 'volatility', 'symbol']].copy()
+        else:
+            # Use loaded volatility data, but filter out NaN values
+            df = df_vol[['timestamp', 'volatility', 'symbol']].copy()
+            df = df.dropna(subset=['volatility'])
+            # Replace any remaining NaN with 0
+            df['volatility'] = df['volatility'].fillna(0.0)
         
         if df.empty:
-            raise HTTPException(status_code=404, detail=f"No data found for symbol {symbol}")
+            raise HTTPException(status_code=404, detail=f"No volatility data found for symbol {symbol}")
+        
+        # Ensure volatility values are non-negative
+        df['volatility'] = df['volatility'].abs()
         
         fig = go.Figure()
         fig.add_trace(go.Scatter(
@@ -113,19 +151,26 @@ async def volatility_chart(
             mode='lines',
             name='Volatility',
             fill='tozeroy',
-            line=dict(color='#ff6b6b', width=2)
+            line=dict(color='#ff6b6b', width=2),
+            hovertemplate='<b>%{fullData.name}</b><br>' +
+                          'Time: %{x}<br>' +
+                          'Volatility: %{y:.6f}<br>' +
+                          '<extra></extra>'
         ))
         
         fig.update_layout(
             title=f"{symbol} Volatility Over Time",
             xaxis_title="Time",
-            yaxis_title="Volatility",
+            yaxis_title="Volatility (Std of Log Returns)",
             template="plotly_dark",
-            height=500
+            height=500,
+            hovermode='x unified'
         )
         
         return json.loads(json.dumps(fig.to_dict(), cls=PlotlyJSONEncoder))
     
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
